@@ -1,3 +1,5 @@
+const STARTING_POINT: i32 = 50;
+
 pub fn process(_input: &str) -> miette::Result<String> {
     let result = 0;
 
