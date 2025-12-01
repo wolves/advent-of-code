@@ -1,13 +1,25 @@
 const STARTING_POINT: i32 = 50;
 
 pub fn process(input: &str) -> miette::Result<String> {
+    let mut current_pos = STARTING_POINT;
+    let mut zero_count = 0;
     for line in input.lines() {
-        let (dir, count) = line.split_at(1);
+        let (dir, count_str) = line.split_at(1);
+        let count = count_str.parse::<i32>().unwrap();
+
+        current_pos = (match dir {
+            "L" => current_pos - count,
+            "R" => current_pos + count,
+            _ => unreachable!(),
+        })
+        .rem_euclid(100);
+
+        if current_pos == 0 {
+            zero_count += 1;
+        };
     }
 
-    let result = 0;
-
-    Ok(result.to_string())
+    Ok(zero_count.to_string())
 }
 
 #[cfg(test)]
