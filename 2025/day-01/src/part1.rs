@@ -1,5 +1,6 @@
 const STARTING_POINT: i32 = 50;
 
+#[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String> {
     let mut current_pos = STARTING_POINT;
     let mut zero_count = 0;

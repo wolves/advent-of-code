@@ -1,5 +1,6 @@
 const STARTING_POINT: i32 = 50;
 
+#[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String> {
     let mut current_pos = STARTING_POINT;
     let mut zero_count = 0;
@@ -63,29 +64,29 @@ L82";
     }
 
     #[test]
-    fn test_process_for_r_calculates_0_crosses(
-    ) -> miette::Result<()> {
+    fn test_process_for_r_calculates_0_crosses()
+    -> miette::Result<()> {
         let input = "R1000";
         assert_eq!("10", process(input)?);
         Ok(())
     }
     #[test]
-    fn test_process_for_l_calculates_0_crosses(
-    ) -> miette::Result<()> {
+    fn test_process_for_l_calculates_0_crosses()
+    -> miette::Result<()> {
         let input = "L200";
         assert_eq!("2", process(input)?);
         Ok(())
     }
     #[test]
-    fn test_process_for_L_rotations_that_end_on_0(
-    ) -> miette::Result<()> {
+    fn test_process_for_L_rotations_that_end_on_0()
+    -> miette::Result<()> {
         let input = "L50";
         assert_eq!("1", process(input)?);
         Ok(())
     }
     #[test]
-    fn test_process_for_L_rotations_that_start_on_0(
-    ) -> miette::Result<()> {
+    fn test_process_for_L_rotations_that_start_on_0()
+    -> miette::Result<()> {
         let input = "L50
 L5
 R5
