@@ -11,7 +11,7 @@ reqwest = { version = "0.12", features=["blocking"] }
 use clap::{error::ErrorKind, CommandFactory, Parser};
 use nom::{
     bytes::complete::tag, character::complete,
-    sequence::preceded, IResult,
+    sequence::preceded, IResult, Parser as NomParser,
 };
 use reqwest::{blocking::Client, header::COOKIE};
 use std::fs::File;
@@ -34,7 +34,7 @@ struct Args {
 }
 
 fn parse_day(input: &str) -> IResult<&str, u32> {
-    preceded(tag("day-"), complete::u32)(input)
+    preceded(tag("day-"), complete::u32).parse(input)
 }
 
 fn main() -> Result<(), reqwest::Error> {
