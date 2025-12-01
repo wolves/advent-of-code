@@ -1,53 +1,79 @@
-const STARTING_POINT: i32 = 50;
+use nom::{
+    IResult, Parser,
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{self, line_ending},
+    multi::separated_list1,
+};
 
-#[tracing::instrument]
+#[tracing::instrument(skip(input))]
 pub fn process(input: &str) -> miette::Result<String> {
-    let mut current_pos = STARTING_POINT;
-    let mut zero_count = 0;
-    for line in input.lines() {
-        let (dir, count_str) = line.split_at(1);
-        let count = count_str.parse::<i32>().unwrap();
+    let (_, directions) = directions.parse(input).unwrap();
 
-        let new_pos = match dir {
-            "L" => current_pos - count,
-            "R" => current_pos + count,
-            _ => unreachable!(),
+    let mut dial_pos = 50;
+    let mut counter = 0;
+
+    for direction in directions {
+        let num = match direction {
+            Direction::Left(num) => -num,
+            Direction::Right(num) => num,
         };
-
-        let mut cycles = match dir {
-            "L" => {
-                current_pos.div_euclid(100)
-                    - new_pos.div_euclid(100)
-            }
-            "R" => {
-                new_pos.div_euclid(100)
-                    - current_pos.div_euclid(100)
-            }
-            _ => unreachable!(),
-        };
-
-        if dir == "L" {
-            if new_pos.rem_euclid(100) == 0 {
-                cycles += 1;
-            }
-
-            if current_pos == 0 && new_pos < 0 {
-                cycles -= 1;
-            }
-        }
-
-        zero_count += cycles;
-        current_pos = new_pos.rem_euclid(100);
+        let (new_dial_pos, additional_counters) =
+            spin(dial_pos, num);
+        dial_pos = new_dial_pos;
+        counter += additional_counters;
     }
 
-    Ok(zero_count.to_string())
+    Ok(counter.to_string())
+}
+
+#[derive(Debug)]
+enum Direction {
+    Left(i32),
+    Right(i32),
+}
+
+fn directions(
+    input: &str,
+) -> IResult<&str, Vec<Direction>> {
+    separated_list1(line_ending, direction).parse(input)
+}
+
+fn direction(input: &str) -> IResult<&str, Direction> {
+    let (input, dir) =
+        alt((tag("L"), tag("R"))).parse(input)?;
+    let (input, num) = complete::i32(input)?;
+
+    let d = match dir {
+        "L" => Direction::Left(num),
+        "R" => Direction::Right(num),
+        x => panic!("unknown {x}"),
+    };
+
+    Ok((input, d))
+}
+
+const DIAL_MAX: i32 = 100;
+
+fn spin(dial: i32, rotation: i32) -> (i32, i32) {
+    let dial_raw_val = dial + rotation;
+    let mut revolutions = (dial_raw_val / DIAL_MAX).abs();
+
+    if dial != 0 && dial_raw_val <= 0 {
+        revolutions += 1;
+    }
+
+    (
+        dial_raw_val.rem_euclid(DIAL_MAX),
+        revolutions,
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn test_process() -> miette::Result<()> {
         let input = "L68
 L30
@@ -63,35 +89,34 @@ L82";
         Ok(())
     }
 
-    #[test]
-    fn test_process_for_r_calculates_0_crosses()
-    -> miette::Result<()> {
-        let input = "R1000";
-        assert_eq!("10", process(input)?);
-        Ok(())
-    }
-    #[test]
-    fn test_process_for_l_calculates_0_crosses()
-    -> miette::Result<()> {
-        let input = "L200";
-        assert_eq!("2", process(input)?);
-        Ok(())
-    }
-    #[test]
-    fn test_process_for_l_rotations_that_end_on_0()
-    -> miette::Result<()> {
-        let input = "L50";
-        assert_eq!("1", process(input)?);
-        Ok(())
-    }
-    #[test]
-    fn test_process_for_l_rotations_that_start_on_0()
-    -> miette::Result<()> {
-        let input = "L50
-L5
-R5
-L5";
-        assert_eq!("2", process(input)?);
-        Ok(())
+    use rstest::rstest;
+
+    #[rstest]
+    #[case((20, 0), 50, -30)]
+    #[case((90, 1), 50, -60)]
+    #[case((90, 3), 50, -260)]
+    #[case((80, 0), 50, 30)]
+    #[case((10, 1), 50, 60)]
+    #[case((10, 4), 50, 360)]
+    #[case((90, 0), 0, -10)]
+    #[case((0, 1), 0, -100)]
+    #[case((10, 0), 0, 10)]
+    #[case((0, 1), 0, 100)]
+    #[case((82, 1), 50, -68)]
+    #[case((52, 0), 82, -30)]
+    #[case((0, 1), 52, 48)]
+    #[case((95, 0), 0, -5)]
+    #[case((55, 1), 95, 60)]
+    #[case((0, 1), 55, -55)]
+    #[case((99, 0), 0, -1)]
+    #[case((0, 1), 99, -99)]
+    #[case((14, 0), 0, 14)]
+    #[case((32, 1), 14, -82)]
+    fn spin_test(
+        #[case] expected: (i32, i32),
+        #[case] starting_pos: i32,
+        #[case] rotation: i32,
+    ) {
+        assert_eq!(expected, spin(starting_pos, rotation))
     }
 }
