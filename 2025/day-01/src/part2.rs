@@ -78,14 +78,14 @@ L82";
         Ok(())
     }
     #[test]
-    fn test_process_for_L_rotations_that_end_on_0()
+    fn test_process_for_l_rotations_that_end_on_0()
     -> miette::Result<()> {
         let input = "L50";
         assert_eq!("1", process(input)?);
         Ok(())
     }
     #[test]
-    fn test_process_for_L_rotations_that_start_on_0()
+    fn test_process_for_l_rotations_that_start_on_0()
     -> miette::Result<()> {
         let input = "L50
 L5
