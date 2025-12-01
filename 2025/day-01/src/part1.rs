@@ -6,26 +6,30 @@ use nom::{
     multi::separated_list1,
 };
 
+const STARTING_POS: i32 = 50;
+
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String> {
     let (_, directions) = directions.parse(input).unwrap();
 
-    let mut dial = 50;
-    let mut counter = 0;
-
-    for direction in directions {
-        match direction {
-            Direction::Left(num) => {
-                dial = (dial - num).rem_euclid(100);
-            }
-            Direction::Right(num) => {
-                dial = (dial + num).rem_euclid(100);
-            }
-        }
-        if dial == 0 {
-            counter += 1;
-        }
-    }
+    let (_final_position, counter) =
+        directions.iter().fold(
+            (STARTING_POS, 0),
+            |(dial_pos, counter), direction| {
+                let num = match direction {
+                    Direction::Left(num) => -num,
+                    Direction::Right(num) => *num,
+                };
+                let next_dial_pos =
+                    (dial_pos - num).rem_euclid(100);
+                let additional_counters =
+                    if next_dial_pos == 0 { 1 } else { 0 };
+                (
+                    next_dial_pos,
+                    counter + additional_counters,
+                )
+            },
+        );
 
     Ok(counter.to_string())
 }
