@@ -1,3 +1,5 @@
+use tracing::info;
+
 const STARTING_POINT: i32 = 50;
 
 #[tracing::instrument]
@@ -7,6 +9,8 @@ pub fn process(input: &str) -> miette::Result<String> {
     for line in input.lines() {
         let (dir, count_str) = line.split_at(1);
         let count = count_str.parse::<i32>().unwrap();
+
+        info!(?dir, ?count);
 
         current_pos = (match dir {
             "L" => current_pos - count,
@@ -27,7 +31,7 @@ pub fn process(input: &str) -> miette::Result<String> {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn test_process() -> miette::Result<()> {
         let input = "L68
 L30
