@@ -1,6 +1,10 @@
 const STARTING_POINT: i32 = 50;
 
-pub fn process(_input: &str) -> miette::Result<String> {
+pub fn process(input: &str) -> miette::Result<String> {
+    for line in input.lines() {
+        let (dir, count) = line.split_at(1);
+    }
+
     let result = 0;
 
     Ok(result.to_string())
