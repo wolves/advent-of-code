@@ -1,30 +1,59 @@
-use tracing::info;
-
-const STARTING_POINT: i32 = 50;
+use nom::{
+    IResult, Parser,
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{self, line_ending},
+    multi::separated_list1,
+};
 
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String> {
-    let mut current_pos = STARTING_POINT;
-    let mut zero_count = 0;
-    for line in input.lines() {
-        let (dir, count_str) = line.split_at(1);
-        let count = count_str.parse::<i32>().unwrap();
+    let (_, directions) = directions.parse(input).unwrap();
 
-        info!(?dir, ?count);
+    let mut dial = 50;
+    let mut counter = 0;
 
-        current_pos = (match dir {
-            "L" => current_pos - count,
-            "R" => current_pos + count,
-            _ => unreachable!(),
-        })
-        .rem_euclid(100);
-
-        if current_pos == 0 {
-            zero_count += 1;
-        };
+    for direction in directions {
+        match direction {
+            Direction::Left(num) => {
+                dial = (dial - num).rem_euclid(100);
+            }
+            Direction::Right(num) => {
+                dial = (dial + num).rem_euclid(100);
+            }
+        }
+        if dial == 0 {
+            counter += 1;
+        }
     }
 
-    Ok(zero_count.to_string())
+    Ok(counter.to_string())
+}
+
+#[derive(Debug)]
+enum Direction {
+    Left(i32),
+    Right(i32),
+}
+
+fn directions(
+    input: &str,
+) -> IResult<&str, Vec<Direction>> {
+    separated_list1(line_ending, direction).parse(input)
+}
+
+fn direction(input: &str) -> IResult<&str, Direction> {
+    let (input, dir) =
+        alt((tag("L"), tag("R"))).parse(input)?;
+    let (input, num) = complete::i32(input)?;
+
+    let d = match dir {
+        "L" => Direction::Left(num),
+        "R" => Direction::Right(num),
+        x => panic!("unknown {x}"),
+    };
+
+    Ok((input, d))
 }
 
 #[cfg(test)]
