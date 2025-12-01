@@ -1,11 +1,11 @@
 #!/usr/bin/env cargo +nightly -Zscript
 ---cargo
 [package]
-edition = "2021"
+edition = "2024"
 [dependencies]
-clap = { version = "4.2", features = ["derive"] }
-nom = "7.1.3"
-reqwest = { version = "0.11.22", features=["blocking"] }
+clap = { version = "4.5", features = ["derive"] }
+nom = "8"
+reqwest = { version = "0.12", features=["blocking"] }
 ---
 
 use clap::{error::ErrorKind, CommandFactory, Parser};
@@ -14,9 +14,9 @@ use nom::{
     sequence::preceded, IResult,
 };
 use reqwest::{blocking::Client, header::COOKIE};
-use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[clap(version)]
@@ -30,7 +30,7 @@ struct Args {
     /// so that we're always in the root without
     /// doing any shenanigans
     #[clap(long)]
-    current_working_directory: PathBuf
+    current_working_directory: PathBuf,
 }
 
 fn parse_day(input: &str) -> IResult<&str, u32> {
@@ -53,7 +53,12 @@ fn main() -> Result<(), reqwest::Error> {
         .exit()
     };
 
-    let aoc_year = args.current_working_directory.file_name().expect("There is a path").to_str().unwrap();
+    let aoc_year = args
+        .current_working_directory
+        .file_name()
+        .expect("There is a path")
+        .to_str()
+        .unwrap();
     let url = format!(
         "https://adventofcode.com/{aoc_year}/day/{day}/input"
     );
@@ -65,8 +70,6 @@ fn main() -> Result<(), reqwest::Error> {
         .header(COOKIE, format!("session={session}"))
         .send()?
         .text()?;
-
-
 
     for filename in ["input1.txt", "input2.txt"] {
         let file_path = args
