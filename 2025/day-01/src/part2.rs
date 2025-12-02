@@ -1,36 +1,92 @@
+use std::ops::Add;
+
 use nom::{
     IResult, Parser,
     branch::alt,
     bytes::complete::tag,
     character::complete::{self, line_ending},
+    combinator::all_consuming,
     multi::separated_list1,
+    sequence::preceded,
 };
 
 #[tracing::instrument(skip(input))]
 pub fn process(input: &str) -> miette::Result<String> {
-    let (_, directions) = directions.parse(input).unwrap();
+    let input = input.trim();
+    let (_, directions) =
+        all_consuming(directions).parse(input).map_err(
+            |e| miette::miette!("parsing failed {}", e),
+        )?;
 
-    let mut dial_pos = 50;
-    let mut counter = 0;
+    let mut dial = Dial::default();
 
     for direction in directions {
-        let num = match direction {
-            Direction::Left(num) => -num,
-            Direction::Right(num) => num,
-        };
-        let (new_dial_pos, additional_counters) =
-            spin(dial_pos, num);
-        dial_pos = new_dial_pos;
-        counter += additional_counters;
+        dial.spin(direction);
     }
 
-    Ok(counter.to_string())
+    Ok(dial.revolutions.to_string())
+}
+
+#[derive(Debug, PartialEq)]
+struct Dial {
+    location: i32,
+    revolutions: i32,
+}
+
+impl Default for Dial {
+    fn default() -> Self {
+        Self {
+            location: 50,
+            revolutions: 0,
+        }
+    }
+}
+
+impl Dial {
+    fn new(location: i32) -> Self {
+        Self {
+            location,
+            revolutions: 0,
+        }
+    }
+
+    fn from_tuple(
+        (starting_position, counter): (i32, i32),
+    ) -> Self {
+        Self {
+            location: starting_position,
+            revolutions: counter,
+        }
+    }
+
+    fn spin(&mut self, rotation: Direction) {
+        let dial_raw_val = self.location + rotation;
+        let mut revolutions =
+            (dial_raw_val / DIAL_MAX).abs();
+
+        if self.location != 0 && dial_raw_val <= 0 {
+            revolutions += 1;
+        }
+
+        self.location = dial_raw_val.rem_euclid(DIAL_MAX);
+        self.revolutions += revolutions;
+    }
 }
 
 #[derive(Debug)]
 enum Direction {
     Left(i32),
     Right(i32),
+}
+impl Add<Direction> for i32 {
+    type Output = i32;
+
+    fn add(self, rhs: Direction) -> Self::Output {
+        self + match rhs {
+            Direction::Left(num) => -num,
+            Direction::Right(num) => num,
+        }
+    }
 }
 
 fn directions(
@@ -40,34 +96,18 @@ fn directions(
 }
 
 fn direction(input: &str) -> IResult<&str, Direction> {
-    let (input, dir) =
-        alt((tag("L"), tag("R"))).parse(input)?;
-    let (input, num) = complete::i32(input)?;
-
-    let d = match dir {
-        "L" => Direction::Left(num),
-        "R" => Direction::Right(num),
-        x => panic!("unknown {x}"),
-    };
-
-    Ok((input, d))
+    alt((
+        preceded(tag("L"), complete::i32)
+            .map(Direction::Left),
+        preceded(
+            tag("R"),
+            complete::i32.map(Direction::Right),
+        ),
+    ))
+    .parse(input)
 }
 
 const DIAL_MAX: i32 = 100;
-
-fn spin(dial: i32, rotation: i32) -> (i32, i32) {
-    let dial_raw_val = dial + rotation;
-    let mut revolutions = (dial_raw_val / DIAL_MAX).abs();
-
-    if dial != 0 && dial_raw_val <= 0 {
-        revolutions += 1;
-    }
-
-    (
-        dial_raw_val.rem_euclid(DIAL_MAX),
-        revolutions,
-    )
-}
 
 #[cfg(test)]
 mod tests {
@@ -92,31 +132,33 @@ L82";
     use rstest::rstest;
 
     #[rstest]
-    #[case((20, 0), 50, -30)]
-    #[case((90, 1), 50, -60)]
-    #[case((90, 3), 50, -260)]
-    #[case((80, 0), 50, 30)]
-    #[case((10, 1), 50, 60)]
-    #[case((10, 4), 50, 360)]
-    #[case((90, 0), 0, -10)]
-    #[case((0, 1), 0, -100)]
-    #[case((10, 0), 0, 10)]
-    #[case((0, 1), 0, 100)]
-    #[case((82, 1), 50, -68)]
-    #[case((52, 0), 82, -30)]
-    #[case((0, 1), 52, 48)]
-    #[case((95, 0), 0, -5)]
-    #[case((55, 1), 95, 60)]
-    #[case((0, 1), 55, -55)]
-    #[case((99, 0), 0, -1)]
-    #[case((0, 1), 99, -99)]
-    #[case((14, 0), 0, 14)]
-    #[case((32, 1), 14, -82)]
+    #[case((20, 0), 50, Direction::Left(30))]
+    #[case((90, 1), 50, Direction::Left(60))]
+    #[case((90, 3), 50, Direction::Left(260))]
+    #[case((80, 0), 50, Direction::Right(30))]
+    #[case((10, 1), 50, Direction::Right(60))]
+    #[case((10, 4), 50, Direction::Right(360))]
+    #[case((90, 0), 0, Direction::Left(10))]
+    #[case((0, 1), 0, Direction::Left(100))]
+    #[case((10, 0), 0, Direction::Right(10))]
+    #[case((0, 1), 0, Direction::Right(100))]
+    #[case((82, 1), 50, Direction::Left(68))]
+    #[case((52, 0), 82, Direction::Left(30))]
+    #[case((0, 1), 52, Direction::Right(48))]
+    #[case((95, 0), 0, Direction::Left(5))]
+    #[case((55, 1), 95, Direction::Right(60))]
+    #[case((0, 1), 55, Direction::Left(55))]
+    #[case((99, 0), 0, Direction::Left(1))]
+    #[case((0, 1), 99, Direction::Left(99))]
+    #[case((14, 0), 0, Direction::Right(14))]
+    #[case((32, 1), 14, Direction::Left(82))]
     fn spin_test(
         #[case] expected: (i32, i32),
         #[case] starting_pos: i32,
-        #[case] rotation: i32,
+        #[case] rotation: Direction,
     ) {
-        assert_eq!(expected, spin(starting_pos, rotation))
+        let mut dial = Dial::new(starting_pos);
+        dial.spin(rotation);
+        assert_eq!(Dial::from_tuple(expected), dial);
     }
 }
