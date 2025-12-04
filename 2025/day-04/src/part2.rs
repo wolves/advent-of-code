@@ -18,7 +18,7 @@ const NEIGHBORS: [IVec2; 8] = [
 pub fn process(input: &str) -> miette::Result<String> {
     let input = input.trim();
 
-    let positions = input
+    let mut positions = input
         .lines()
         .enumerate()
         .flat_map(|(y, line)| {
@@ -32,20 +32,36 @@ pub fn process(input: &str) -> miette::Result<String> {
         })
         .collect::<HashSet<IVec2>>();
 
-    let count = positions
-        .iter()
-        .filter(|&position| {
-            NEIGHBORS
-                .iter()
-                .filter(|&offset| {
-                    positions.contains(&(position + offset))
-                })
-                .count()
-                < 4
-        })
-        .count();
+    let mut removed_roll_count = 0;
+    loop {
+        let rolls_to_remove: HashSet<IVec2> = positions
+            .iter()
+            .filter(|&position| {
+                NEIGHBORS
+                    .iter()
+                    .filter(|&offset| {
+                        positions
+                            .contains(&(position + offset))
+                    })
+                    .count()
+                    < 4
+            })
+            .cloned()
+            .collect();
 
-    Ok(count.to_string())
+        if rolls_to_remove.len() == 0 {
+            break;
+        } else {
+            removed_roll_count += rolls_to_remove.len();
+        }
+
+        positions = positions
+            .difference(&rolls_to_remove)
+            .cloned()
+            .collect();
+    }
+
+    Ok(removed_roll_count.to_string())
 }
 
 #[cfg(test)]
