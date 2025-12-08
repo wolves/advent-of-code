@@ -15,9 +15,14 @@ pub fn process(input: &str) -> miette::Result<String> {
     let (_, (ranges, items)) =
         all_consuming(parse).parse(input).unwrap();
 
-    dbg!(ranges, items);
+    let result = items
+        .iter()
+        .filter(|item| {
+            ranges.iter().any(|range| range.contains(item))
+        })
+        .count();
 
-    Ok(0.to_string())
+    Ok(result.to_string())
 }
 
 fn parse(
@@ -65,7 +70,7 @@ mod tests {
 11
 17
 32";
-        assert_eq!("", process(input)?);
+        assert_eq!("3", process(input)?);
         Ok(())
     }
 }
